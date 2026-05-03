@@ -1,0 +1,30 @@
+services:
+  # 1. Backend Web Service (FastAPI)
+  - type: web
+    name: fake-job-backend
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    plan: standard # Use standard (2GB RAM) since BERT models will crash on free/starter tiers
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: SERPAPI_KEY
+        sync: false # Render will prompt you to enter this in the dashboard securely
+
+  # 2. Frontend Static Site (React/Vite)
+  - type: web
+    name: fake-job-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: fake-job-backend
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false # Render will prompt you to enter this securely

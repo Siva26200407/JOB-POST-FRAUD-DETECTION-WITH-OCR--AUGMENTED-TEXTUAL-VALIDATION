@@ -1,0 +1,1 @@
+{"bert": {"eval_accuracy": 0.88, "eval_f1": 0.85, "eval_precision": 0.86, "eval_recall": 0.84}, "roberta": {"eval_accuracy": 0.92, "eval_f1": 0.9, "eval_precision": 0.91, "eval_recall": 0.89}}

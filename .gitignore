@@ -1,0 +1,21 @@
+# Node modules
+node_modules/
+frontend/node_modules/
+npm-debug.log
+
+# Python environments
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+backend/.env
+frontend/.env
+
+# Mac/OS
+.DS_Store
+
+# Logs
+*.log
