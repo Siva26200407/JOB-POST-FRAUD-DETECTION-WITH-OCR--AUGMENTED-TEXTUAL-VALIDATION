@@ -100,9 +100,10 @@ async def predict_text(data: TextInput):
 
     # 2. Heuristic Keyword & Security Extraction (Real-Time World Check)
     fake_keywords_ui = [
-        'urgent', 'fee', 'western union', 'guaranteed', 'no experience required', 
+        'urgent', 'fee', 'western union', 'guaranteed', 'no experience', 
         'bank details', 'wire transfer', 'crypto', 'investment', 'easy money', 
-        'cash bonus', 'upfront payment', 'ssn', 'social security', 'work from home data entry', 'payment gateway'
+        'cash bonus', 'upfront payment', 'ssn', 'social security', 'data entry', 
+        'payment gateway', 'whatsapp', 'earn daily', 'huge salary', 'instant joining'
     ]
     extracted_keywords = [word for word in fake_keywords_ui if word in combined_text.lower()]
     
@@ -181,6 +182,13 @@ async def predict_text(data: TextInput):
         confidence = max(0.85, confidence) # Strong indicator of scam
         if "Suspicious Free Email Domain" not in extracted_keywords:
             extracted_keywords.append("Suspicious Free Email Domain")
+            
+    # Override if multiple scam phrases are found (Zero-Shot Models often fail here)
+    if len(extracted_keywords) >= 2 or any(word in combined_text.lower() for word in ['whatsapp', 'registration fee', 'earn daily']):
+        final_prediction = "Fake"
+        confidence = max(0.95, confidence)
+        if "Highly Suspicious Pattern" not in extracted_keywords:
+            extracted_keywords.append("Highly Suspicious Pattern")
 
     return {
         "prediction": final_prediction,
