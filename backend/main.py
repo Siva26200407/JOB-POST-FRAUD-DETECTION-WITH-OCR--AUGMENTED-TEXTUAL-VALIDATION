@@ -81,11 +81,20 @@ async def predict_text(data: TextInput):
         except Exception as e:
             print(f"Transformers Inference Error: {e}")
     else:
-        # Heuristic fallback if models failed to download
-        fake_keywords = ['urgent', 'fee', 'western union', 'crypto', 'investment', 'upfront payment']
+        # Heuristic fallback if models failed to download (e.g. Memory Issues)
+        fake_keywords = [
+            'urgent', 'fee', 'western union', 'crypto', 'investment', 
+            'upfront payment', 'no experience required', 'guaranteed', 
+            'wire transfer', 'ssn', 'social security', 'cash bonus'
+        ]
         match_count = sum(1 for word in fake_keywords if word in combined_text.lower())
-        bert_conf = min(0.9, 0.1 + (match_count * 0.2))
-        roberta_conf = min(0.95, 0.15 + (match_count * 0.25))
+        if match_count > 0:
+            bert_conf = min(0.9, 0.45 + (match_count * 0.15))
+            roberta_conf = min(0.95, 0.50 + (match_count * 0.15))
+        else:
+            # Default slightly towards Real if absolutely no red flags, but keep it uncertain
+            bert_conf = 0.3
+            roberta_conf = 0.35
 
     ml_confidence_fake = (bert_conf + roberta_conf) / 2.0
 
@@ -143,24 +152,35 @@ async def predict_text(data: TextInput):
         print(f"Web Search Error: {e}")
 
     # 4. Final Decision Matrix (ML + Verification)
-    if web_verified and exact_job_link:
-        # If explicitly found on trusted site
-        final_prediction = "Real"
-        confidence = 0.95
-    else:
-        # Trust BERT and RoBERTa
-        if ml_confidence_fake > 0.5:
-            final_prediction = "Fake"
-            confidence = ml_confidence_fake
-        else:
-            final_prediction = "Real"
-            confidence = 1.0 - ml_confidence_fake
-
-    # Penalize if suspicious free emails are found in a "Corporate" job
-    if suspicious_emails_found and final_prediction == "Real":
+    
+    # Base prediction on AI Models
+    if ml_confidence_fake > 0.55: # Threshold slightly higher to prevent false positives
         final_prediction = "Fake"
-        confidence = 0.85 # Strong indicator of scam
-        extracted_keywords.append("Suspicious Free Email Domain")
+        confidence = ml_confidence_fake
+    else:
+        final_prediction = "Real"
+        confidence = 1.0 - ml_confidence_fake
+
+    # Web Verification Logic (Acts as a booster, not an absolute override)
+    if web_verified and exact_job_link:
+        if final_prediction == "Real":
+            confidence = min(0.99, confidence + 0.15) # Boost confidence
+        elif final_prediction == "Fake" and confidence < 0.75:
+            # AI is weakly confident it's fake, but it's on a trusted portal. Override.
+            final_prediction = "Real"
+            confidence = 0.85
+            extracted_keywords.append("Verified on Trusted Portal")
+    else:
+        if final_prediction == "Real":
+            confidence = max(0.51, confidence - 0.15) # Penalize lack of digital footprint
+
+    # 5. Hard Security Rules (Overrides)
+    # Penalize if suspicious free emails are found in a "Corporate" job
+    if suspicious_emails_found:
+        final_prediction = "Fake"
+        confidence = max(0.85, confidence) # Strong indicator of scam
+        if "Suspicious Free Email Domain" not in extracted_keywords:
+            extracted_keywords.append("Suspicious Free Email Domain")
 
     return {
         "prediction": final_prediction,
