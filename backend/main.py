@@ -155,9 +155,14 @@ async def predict_text(data: TextInput):
     # 4. Final Decision Matrix (ML + Verification)
     
     # Base prediction on AI Models
-    if ml_confidence_fake > 0.55: # Threshold slightly higher to prevent false positives
+    # If the job has no digital footprint (not verified online), we enforce a stricter threshold.
+    threshold = 0.55
+    if not web_verified:
+        threshold = 0.40  # Be much stricter for unverified jobs
+        
+    if ml_confidence_fake > threshold:
         final_prediction = "Fake"
-        confidence = ml_confidence_fake
+        confidence = max(0.65, ml_confidence_fake) # Ensure it shows a solid fake confidence
     else:
         final_prediction = "Real"
         confidence = 1.0 - ml_confidence_fake
