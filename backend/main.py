@@ -103,14 +103,16 @@ async def predict_text(data: TextInput):
         'urgent', 'fee', 'western union', 'guaranteed', 'no experience', 
         'bank details', 'wire transfer', 'crypto', 'investment', 'easy money', 
         'cash bonus', 'upfront payment', 'ssn', 'social security', 'data entry', 
-        'payment gateway', 'whatsapp', 'earn daily', 'huge salary', 'instant joining'
+        'payment gateway', 'whatsapp', 'earn daily', 'huge salary', 'instant joining',
+        'work from home', 'wfh', 'part time', 'daily payment', 'no interview',
+        'hiring remote', 'contact immediately', 'limited offer', 'registration'
     ]
     extracted_keywords = [word for word in fake_keywords_ui if word in combined_text.lower()]
     
     emails = re.findall(r'[\w\.-]+@[\w\.-]+', combined_text)
     urls = re.findall(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', combined_text)
     
-    suspicious_domains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'protonmail.com']
+    suspicious_domains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'protonmail.com', 'telegram']
     suspicious_emails_found = [email for email in emails if any(d in email.lower() for d in suspicious_domains)]
 
     # 3. Web Verification via SerpAPI
@@ -158,7 +160,7 @@ async def predict_text(data: TextInput):
     # If the job has no digital footprint (not verified online), we enforce a stricter threshold.
     threshold = 0.55
     if not web_verified:
-        threshold = 0.40  # Be much stricter for unverified jobs
+        threshold = 0.35  # Be aggressively strict for unverified jobs
         
     if ml_confidence_fake > threshold:
         final_prediction = "Fake"
@@ -184,14 +186,14 @@ async def predict_text(data: TextInput):
     # Penalize if suspicious free emails are found in a "Corporate" job
     if suspicious_emails_found:
         final_prediction = "Fake"
-        confidence = max(0.85, confidence) # Strong indicator of scam
+        confidence = max(0.95, confidence) # Strong indicator of scam
         if "Suspicious Free Email Domain" not in extracted_keywords:
             extracted_keywords.append("Suspicious Free Email Domain")
             
-    # Override if multiple scam phrases are found (Zero-Shot Models often fail here)
-    if len(extracted_keywords) >= 2 or any(word in combined_text.lower() for word in ['whatsapp', 'registration fee', 'earn daily']):
+    # Override if ANY scam phrase is found in an unverified job OR multiple scam phrases are found
+    if (not web_verified and len(extracted_keywords) >= 1) or len(extracted_keywords) >= 2 or any(word in combined_text.lower() for word in ['whatsapp', 'registration fee', 'earn daily']):
         final_prediction = "Fake"
-        confidence = max(0.95, confidence)
+        confidence = max(0.98, confidence)
         if "Highly Suspicious Pattern" not in extracted_keywords:
             extracted_keywords.append("Highly Suspicious Pattern")
 
